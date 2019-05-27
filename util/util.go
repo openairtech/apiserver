@@ -14,11 +14,55 @@
 
 package util
 
-import "io"
+import (
+	"errors"
+	"fmt"
+	"io"
+	"strconv"
+	"strings"
+	"time"
+)
 
-// CloseQuietly closes given closer without error checking
+// CloseQuietly closes given closer without error checking.
 func CloseQuietly(closer io.Closer) {
-	if closer != nil {
-		_ = closer.Close()
+	_ = closer.Close()
+}
+
+// ParseBBox parses given bounding box in comma-delimited string format, like "44.43,48.65,44.53,48.7".
+func ParseBBox(sbb string) ([]float64, error) {
+	if sbb == "" {
+		return nil, nil
 	}
+
+	sbbvs := strings.Split(sbb, ",")
+
+	if len(sbbvs) < 4 {
+		return nil, errors.New(fmt.Sprintf("invalid bounding box: [%s]", sbb))
+	}
+
+	bbvs := make([]float64, 4)
+
+	for i, sbbv := range sbbvs {
+		if i >= 4 {
+			break
+		}
+
+		bbv, err := strconv.ParseFloat(sbbv, 64)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("invalid bounding box [%s] value: %s", sbb, sbbv))
+		}
+
+		bbvs[i] = bbv
+	}
+
+	return bbvs, nil
+}
+
+// ParseDuration parses given duration string into Duration value (with zero value for empty string).
+func ParseDuration(ds string) (time.Duration, error) {
+	if ds == "" {
+		return 0, nil
+	}
+
+	return time.ParseDuration(ds)
 }

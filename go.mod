@@ -4,6 +4,7 @@ replace github.com/openairtech/api v0.0.0 => ../openair-api
 
 require (
 	github.com/cridenour/go-postgis v1.0.0
+	github.com/gorilla/handlers v1.4.0
 	github.com/gorilla/mux v1.7.1
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jmoiron/sqlx v1.2.0

@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
 	"github.com/openairtech/apiserver/db"
@@ -33,15 +34,29 @@ func NewServer(addr string, db *db.Db) *Server {
 	var router = mux.NewRouter()
 
 	var v1Api = router.PathPrefix("/v1").Subrouter()
+
+	v1Api.NotFoundHandler = http.HandlerFunc(v1.ErrorNotFoundHandler)
+	v1Api.MethodNotAllowedHandler = http.HandlerFunc(v1.ErrorMethodNotAllowedHandler)
+
 	v1Api.Handle("/feeder", v1.FeederHandler(db)).Methods("POST")
+
+	sgh := v1.StationsGetHandler(db)
+	v1Api.Handle("/stations", sgh).Methods("GET")
+	//v1Api.Handle("/stations", sgh).
+	//	Queries("offset", "{offset:[0-9]+}", "limit", "{limit:[0-9]+}").
+	//	Methods("GET")
+
+	originsOk := handlers.AllowedOrigins([]string{"*"})
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
+	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
 
 	s := &Server{
 		http: &http.Server{
 			Addr:         addr,
-			WriteTimeout: time.Second * 15,
-			ReadTimeout:  time.Second * 15,
-			IdleTimeout:  time.Second * 60,
-			Handler:      router,
+			WriteTimeout: 15 * time.Second,
+			ReadTimeout:  15 * time.Second,
+			IdleTimeout:  60 * time.Second,
+			Handler:      handlers.CORS(originsOk, headersOk, methodsOk)(router),
 		},
 	}
 

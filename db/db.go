@@ -16,8 +16,9 @@ package db
 
 import (
 	"fmt"
-	"github.com/openairtech/apiserver/util"
 	"time"
+
+	"github.com/openairtech/apiserver/util"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -54,19 +55,44 @@ func (db *Db) StationByTokenId(tokenId string) (*Station, error) {
 	}
 	return &s, nil
 }
+func (db *Db) Stations(bbox []float64, mlast time.Duration) ([]Station, error) {
+	var s []Station
+
+	query := `SELECT DISTINCT ON (s.id) s.*, m.id "m.id", m.tstamp "m.tstamp", m.temperature "m.temperature", 
+                          m.pressure "m.pressure", m.humidity "m.humidity", m.pm25 "m.pm25", m.pm10 "m.pm10", 
+                          m.aqi "m.aqi"
+		FROM Stations s LEFT JOIN Measurements m ON s.id = m.station_id `
+
+	if mlast > 0 {
+		query += fmt.Sprintf("AND m.tstamp > NOW() - INTERVAL '%d SECONDS' ", int(mlast.Seconds()))
+	}
+
+	if len(bbox) == 4 {
+		query += fmt.Sprintf("WHERE s.location @ ST_MakeEnvelope(%f, %f, %f, %f) ",
+			bbox[0], bbox[1], bbox[2], bbox[3])
+	}
+
+	query += "ORDER BY s.id, m.tstamp DESC"
+
+	if err := db.sqlx.Select(&s, query); err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
 
 func (db *Db) AddMeasurement(station *Station, timestamp time.Time,
-	temperature, humidity, pressure, pm25, pm10 *float64, aqi *int) (*Measurement, error) {
+	temperature, humidity, pressure, pm25, pm10 *float32, aqi *int) (*Measurement, error) {
 
 	m := Measurement{
-		Station:     *station,
-		Timestamp:   timestamp,
+		StationId:   toNullInt64(&station.Id),
 		Temperature: toNullFloat64(temperature),
 		Humidity:    toNullFloat64(humidity),
 		Pressure:    toNullFloat64(pressure),
 		Pm25:        toNullFloat64(pm25),
 		Pm10:        toNullFloat64(pm10),
-		Aqi:         toNullInt(aqi),
+		Aqi:         toNullInt64(aqi),
+		Timestamp:   &timestamp,
 	}
 
 	// TODO Add `ON CONFLICT` clause and its handling logic
@@ -74,16 +100,19 @@ func (db *Db) AddMeasurement(station *Station, timestamp time.Time,
 		VALUES (:station_id, :tstamp, :temperature, :humidity, :pressure, :pm25, :pm10, :aqi) 
 		RETURNING id`
 	rows, err := db.sqlx.NamedQuery(query, m)
-	util.CloseQuietly(rows)
 
 	if err != nil {
 		return nil, err
 	}
 
+	defer util.CloseQuietly(rows)
+
 	if rows.Next() {
 		if err := rows.Scan(&m.Id); err != nil {
 			return nil, err
 		}
+	} else {
+		fmt.Printf("No rows!\n")
 	}
 
 	return &m, nil

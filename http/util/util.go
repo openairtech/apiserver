@@ -12,20 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1
+package util
 
 import (
 	"encoding/json"
 	"net/http"
-
-	"github.com/openairtech/api"
 )
 
-func writeResult(w http.ResponseWriter, sc api.StatusCode, m string) {
+func WriteJsonResponse(w http.ResponseWriter, r interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	r := api.Result{
-		Status:  sc,
-		Message: m,
-	}
 	_ = json.NewEncoder(w).Encode(r)
 }

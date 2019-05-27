@@ -20,8 +20,8 @@ import (
 
 func TestPM_Valid(t *testing.T) {
 	type fields struct {
-		Pm25 float64
-		Pm10 float64
+		Pm25 float32
+		Pm10 float32
 	}
 	tests := []struct {
 		name   string
@@ -47,8 +47,8 @@ func TestPM_Valid(t *testing.T) {
 
 func TestPM_Aqi(t *testing.T) {
 	type fields struct {
-		Pm25 float64
-		Pm10 float64
+		Pm25 float32
+		Pm10 float32
 	}
 	tests := []struct {
 		name   string
@@ -74,9 +74,9 @@ func TestPM_Aqi(t *testing.T) {
 
 func Test_iaqi(t *testing.T) {
 	type args struct {
-		c   float64
-		bps []float64
-		q   float64
+		c   float32
+		bps []float32
+		q   float32
 	}
 	tests := []struct {
 		name string

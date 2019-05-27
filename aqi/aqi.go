@@ -20,14 +20,14 @@ import (
 )
 
 var (
-	aqiVals = []float64{0, 51, 101, 151, 201, 301, 401, 500}
-	pm25Bps = []float64{0, 12.1, 35.5, 55.5, 150.5, 250.5, 350.5, 500}
-	pm10Bps = []float64{0, 55, 155, 255, 355, 425, 505, 605}
+	aqiVals = []float32{0, 51, 101, 151, 201, 301, 401, 500}
+	pm25Bps = []float32{0, 12.1, 35.5, 55.5, 150.5, 250.5, 350.5, 500}
+	pm10Bps = []float32{0, 55, 155, 255, 355, 425, 505, 605}
 )
 
 type PM struct {
 	sync.RWMutex
-	Pm25, Pm10 float64
+	Pm25, Pm10 float32
 }
 
 func (pm *PM) Valid() bool {
@@ -47,14 +47,14 @@ func (pm *PM) Aqi() int {
 	return iaqi25
 }
 
-func iaqi(c float64, bps []float64, q float64) int {
-	c = math.Floor(c/q) * q
+func iaqi(c float32, bps []float32, q float32) int {
+	c = float32(math.Floor(float64(c/q))) * q
 	bp := breakpoint(bps, c)
 	bpLo, bpHi, aqiLo, aqiHi := bps[bp], bps[bp+1]-q, aqiVals[bp], aqiVals[bp+1]-1
-	return int(math.Round(constrain(linear(c, bpLo, bpHi, aqiLo, aqiHi), aqiVals[0], aqiVals[len(aqiVals)-1])))
+	return int(math.Round(float64(constrain(linear(c, bpLo, bpHi, aqiLo, aqiHi), aqiVals[0], aqiVals[len(aqiVals)-1]))))
 }
 
-func breakpoint(bps []float64, val float64) int {
+func breakpoint(bps []float32, val float32) int {
 	var bp int
 	for i := range bps[:len(bps)-1] {
 		bp = i
@@ -65,11 +65,11 @@ func breakpoint(bps []float64, val float64) int {
 	return bp
 }
 
-func linear(value, fromLow, fromHigh, toLow, toHigh float64) float64 {
+func linear(value, fromLow, fromHigh, toLow, toHigh float32) float32 {
 	return ((value-fromLow)/(fromHigh-fromLow))*(toHigh-toLow) + toLow
 }
 
-func constrain(x, a, b float64) float64 {
+func constrain(x, a, b float32) float32 {
 	if x < a {
 		return a
 	} else if x > b {
