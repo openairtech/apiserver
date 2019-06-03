@@ -3,6 +3,8 @@
 BIN := openair-apiserver
 PKG := github.com/openairtech/apiserver
 
+BINDIR = bin
+
 VERSION_VAR := cmd.Version
 TIMESTAMP_VAR := cmd.Timestamp
 
@@ -16,13 +18,16 @@ default: all
 all: build
 
 build:
-	go build -x $(GOBUILD_LDFLAGS) -v -o ./bin/$(BIN)
+	go build -x $(GOBUILD_LDFLAGS) -v -o $(BINDIR)/$(BIN)
 
 build-static:
-	env CGO_ENABLED=0 GOOS=linux go build -a -installsuffix "static" $(GOBUILD_LDFLAGS) -o ./bin/$(BIN)
+	env CGO_ENABLED=0 GOOS=linux go build -a -installsuffix "static" $(GOBUILD_LDFLAGS) -o $(BINDIR)/$(BIN)
 
 clean:
-	rm -dRf ./bin
+	rm -dRf $(BINDIR)
+
+deploy: build-static
+	scp $(BINDIR)/$(BIN) root@openair.city:/usr/bin && ssh root@openair.city 'systemctl restart openair-apiserver'
 
 fmt:
 	go fmt ./...
