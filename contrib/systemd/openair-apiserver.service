@@ -1,0 +1,17 @@
+[Unit]
+Description=OpenAir API Server
+After=network.target
+
+[Service]
+EnvironmentFile=-/etc/openair/config
+User=openair
+ExecStart=/usr/bin/openair-apiserver \
+            $OPENAIR_DB \
+            $OPENAIR_HTTP \
+            $OPENAIR_DEBUG
+Restart=on-failure
+Type=simple
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
