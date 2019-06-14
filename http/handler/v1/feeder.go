@@ -41,7 +41,7 @@ func FeederHandler(db *db.Db) http.Handler {
 
 		s, err := db.StationByTokenId(f.TokenId)
 		if err != nil {
-			m := fmt.Sprintf("invalid station token id: %v", err)
+			m := fmt.Sprintf("can't get station by token id [%s]: %v", f.TokenId, err)
 			writeResult(w, api.StatusBadRequest, m)
 			log.Error(m)
 			return
