@@ -8,6 +8,10 @@ BINDIR = bin
 VERSION_VAR := cmd.Version
 TIMESTAMP_VAR := cmd.Timestamp
 
+DEPLOY_USER := root
+DEPLOY_SERVER := openair.city
+DEPLOY_DIR := /usr/bin/
+
 VERSION ?= $(shell git describe --always --dirty --tags)
 TIMESTAMP := $(shell date -u '+%Y-%m-%d_%I:%M:%S%p')
 
@@ -27,7 +31,8 @@ clean:
 	rm -dRf $(BINDIR)
 
 deploy: build-static
-	scp $(BINDIR)/$(BIN) root@openair.city:/usr/bin && ssh root@openair.city 'systemctl restart openair-apiserver'
+	rsync -az $(BINDIR)/$(BIN) $(DEPLOY_USER)@$(DEPLOY_SERVER):$(DEPLOY_DIR) && \
+	ssh $(DEPLOY_USER)@$(DEPLOY_SERVER) 'systemctl restart $(BIN)'
 
 fmt:
 	go fmt ./...
