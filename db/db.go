@@ -18,11 +18,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/openairtech/apiserver/util"
-
+	gq "github.com/doug-martin/goqu/v7"
+	_ "github.com/doug-martin/goqu/v7/dialect/postgres"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+
+	"github.com/openairtech/apiserver/util"
 )
+
+var d = gq.Dialect("postgres")
 
 type Db struct {
 	sqlx *sqlx.DB
@@ -50,31 +54,45 @@ func (db *Db) Close() {
 
 func (db *Db) StationByTokenId(tokenId string) (*Station, error) {
 	s := Station{}
-	if err := db.sqlx.Get(&s, "SELECT * FROM Stations WHERE token_id = $1", tokenId); err != nil {
+	if err := db.sqlx.Get(&s, "SELECT * FROM stations WHERE token_id = $1", tokenId); err != nil {
 		return nil, err
 	}
 	return &s, nil
 }
+
 func (db *Db) Stations(bbox []float64, mlast time.Duration) ([]Station, error) {
 	var s []Station
 
-	query := `SELECT DISTINCT ON (s.id) s.*, m.id "m.id", m.tstamp "m.tstamp", m.temperature "m.temperature", 
-                          m.pressure "m.pressure", m.humidity "m.humidity", m.pm25 "m.pm25", m.pm10 "m.pm10", 
-                          m.aqi "m.aqi"
-		FROM Stations s LEFT JOIN Measurements m ON s.id = m.station_id `
+	lj := []gq.Expression{gq.I("s.id").Eq(gq.I("m.station_id"))}
 
 	if mlast > 0 {
-		query += fmt.Sprintf("AND m.tstamp > NOW() - INTERVAL '%d SECONDS' ", int(mlast.Seconds()))
+		lj = append(lj, gq.L("m.tstamp > NOW() - ? * INTERVAL '1 SECONDS'", int(mlast.Seconds())))
 	}
+
+	var w []gq.Expression
 
 	if len(bbox) == 4 {
-		query += fmt.Sprintf("WHERE s.location @ ST_MakeEnvelope(%f, %f, %f, %f) ",
-			bbox[0], bbox[1], bbox[2], bbox[3])
+		w = append(w, gq.L("s.location @ ST_MakeEnvelope(?, ?, ?, ?)",
+			bbox[0], bbox[1], bbox[2], bbox[3]))
 	}
 
-	query += "ORDER BY s.id, m.tstamp DESC"
+	q := d.From(gq.T("stations").As("s")).
+		Select(gq.L(`DISTINCT ON (s.id) s.*, m.id "m.id", m.tstamp "m.tstamp", m.temperature "m.temperature", 
+			m.pressure "m.pressure", m.humidity "m.humidity", m.pm25 "m.pm25", m.pm10 "m.pm10", m.aqi "m.aqi"`)).
+		LeftJoin(gq.T("measurements").As("m"), gq.On(lj...))
 
-	if err := db.sqlx.Select(&s, query); err != nil {
+	if len(w) > 0 {
+		q = q.Where(w...)
+	}
+
+	q = q.Order(gq.I("s.id").Asc(), gq.I("m.tstamp").Desc())
+
+	query, args, err := q.Prepared(true).ToSQL()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.sqlx.Select(&s, query, args...); err != nil {
 		return nil, err
 	}
 
@@ -96,7 +114,7 @@ func (db *Db) AddMeasurement(station *Station, timestamp time.Time,
 	}
 
 	// TODO Add `ON CONFLICT` clause and its handling logic
-	query := `INSERT INTO Measurements(station_id, tstamp, temperature, humidity, pressure, pm25, pm10, aqi)
+	query := `INSERT INTO measurements(station_id, tstamp, temperature, humidity, pressure, pm25, pm10, aqi)
 		VALUES (:station_id, :tstamp, :temperature, :humidity, :pressure, :pm25, :pm10, :aqi) 
 		RETURNING id`
 	rows, err := db.sqlx.NamedQuery(query, m)
