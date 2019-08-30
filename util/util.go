@@ -58,11 +58,34 @@ func ParseBBox(sbb string) ([]float64, error) {
 	return bbvs, nil
 }
 
-// ParseDuration parses given duration string into Duration value (with zero value for empty string).
-func ParseDuration(ds string) (time.Duration, error) {
+// ParseDuration parses given duration string ds into duration.
+// It returns parsed duration value or nil for empty string, and error if duration string is invalid.
+func ParseDuration(ds string) (*time.Duration, error) {
 	if ds == "" {
-		return 0, nil
+		return nil, nil
 	}
 
-	return time.ParseDuration(ds)
+	d, err := time.ParseDuration(ds)
+	if err != nil {
+		return nil, err
+	}
+
+	return &d, nil
+}
+
+// ParseUnixTime parses given Unix time string uts into time.
+// It returns parsed time value or nil for empty string, and error if given string can't be parsed as an Unix time.
+func ParseUnixTime(uts string) (*time.Time, error) {
+	if uts == "" {
+		return nil, nil
+	}
+
+	ut, err := strconv.ParseInt(uts, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	t := time.Unix(ut, 0)
+
+	return &t, nil
 }

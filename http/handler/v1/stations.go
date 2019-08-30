@@ -34,13 +34,19 @@ func StationsGetHandler(db *db.Db) http.Handler {
 			return
 		}
 
+		mfrom, err := util.ParseUnixTime(r.URL.Query().Get("mfrom"))
+		if err != nil {
+			writeResult(w, api.StatusBadRequest, fmt.Sprint(err))
+			return
+		}
+
 		mlast, err := util.ParseDuration(r.URL.Query().Get("mlast"))
 		if err != nil {
 			writeResult(w, api.StatusBadRequest, fmt.Sprint(err))
 			return
 		}
 
-		dss, err := db.Stations(bbox, mlast)
+		dss, err := db.Stations(bbox, mfrom, mlast)
 		if err != nil {
 			m := fmt.Sprintf("can't get stations: %v", err)
 			writeResult(w, api.StatusServerError, m)

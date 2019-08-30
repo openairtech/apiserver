@@ -15,6 +15,7 @@
 package v1
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -79,6 +80,17 @@ func FeederHandler(db *db.Db) http.Handler {
 			}
 
 			log.Debugf("added measurement: %+v", m)
+		}
+
+		// Update station data
+		su := s.Copy()
+		seen := time.Now()
+		su.Seen = &seen
+		su.Version = sql.NullString{String: f.Version, Valid: len(f.Version) > 0}
+		if err := db.UpdateStation(s, &su); err != nil {
+			m := fmt.Sprintf("can't update station data: %v", err)
+			writeResult(w, api.StatusServerError, m)
+			return
 		}
 
 		writeResult(w, api.StatusOk, "")

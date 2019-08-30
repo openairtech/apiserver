@@ -27,9 +27,17 @@ type Station struct {
 	Id          int
 	TokenId     string `db:"token_id"`
 	Description sql.NullString
+	Version     sql.NullString
 	Created     time.Time
+	Seen        *time.Time
 	Location    postgis.PointS
 	Measurement `db:"m"`
+}
+
+func (s Station) Copy() Station {
+	c := Station{}
+	c = s
+	return c
 }
 
 func (s Station) ApiStation() api.Station {

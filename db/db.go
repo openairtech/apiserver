@@ -15,6 +15,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -52,6 +53,9 @@ func (db *Db) Close() {
 	_ = db.sqlx.Close()
 }
 
+// StationByTokenId finds station by its tokenId.
+// It returns reference to Station struct or nil if no station with given token ID was found,
+// or error if something went wrong.
 func (db *Db) StationByTokenId(tokenId string) (*Station, error) {
 	s := Station{}
 	if err := db.sqlx.Get(&s, "SELECT * FROM stations WHERE token_id = $1", tokenId); err != nil {
@@ -60,13 +64,26 @@ func (db *Db) StationByTokenId(tokenId string) (*Station, error) {
 	return &s, nil
 }
 
-func (db *Db) Stations(bbox []float64, mlast time.Duration) ([]Station, error) {
+// Stations gets slice of stations with their last measurements according to given parameters.
+// bbox, if not empty, defines a bounding box [min_long, min_lat, max_long, max_lat] to get stations within it.
+// mfrom specifies the upper time limit for last measurement to include in result, now() if nil.
+// mlast, if not nil, defines the lower time limit for last measurement to include in result,
+// and it is computed as (mfrom - mlast).
+func (db *Db) Stations(bbox []float64, mfrom *time.Time, mlast *time.Duration) ([]Station, error) {
 	var s []Station
 
 	lj := []gq.Expression{gq.I("s.id").Eq(gq.I("m.station_id"))}
 
-	if mlast > 0 {
-		lj = append(lj, gq.L("m.tstamp > NOW() - ? * INTERVAL '1 SECONDS'", int(mlast.Seconds())))
+	if mfrom != nil {
+		lj = append(lj, gq.L("m.tstamp <= ?", mfrom))
+	}
+
+	if mlast != nil {
+		if mfrom != nil {
+			lj = append(lj, gq.L("m.tstamp > ?::TIMESTAMP - ? * INTERVAL '1 SECOND'", mfrom, int(mlast.Seconds())))
+		} else {
+			lj = append(lj, gq.L("m.tstamp > NOW() - ? * INTERVAL '1 SECOND'", int(mlast.Seconds())))
+		}
 	}
 
 	var w []gq.Expression
@@ -97,6 +114,51 @@ func (db *Db) Stations(bbox []float64, mlast time.Duration) ([]Station, error) {
 	}
 
 	return s, nil
+}
+
+// UpdateStation updates station s data by the differences found while comparing it with updated data su
+func (db *Db) UpdateStation(s, su *Station) error {
+	if s == su {
+		// No fields to update
+		return nil
+	}
+
+	r := make(gq.Record)
+	if s.Id != su.Id {
+		return errors.New(fmt.Sprintf("station id %d change to %d is not allowed", s.Id, su.Id))
+	}
+	if s.TokenId != su.TokenId {
+		r["token_id"] = su.TokenId
+	}
+	if s.Description != su.Description {
+		r["description"] = su.Description
+	}
+	if s.Version != su.Version {
+		r["version"] = su.Version
+	}
+	if s.Created != su.Created {
+		r["created"] = su.Created
+	}
+	if s.Seen != su.Seen {
+		r["seen"] = su.Seen
+	}
+	if s.Location != su.Location {
+		r["location"] = su.Location
+	}
+
+	if len(r) == 0 {
+		return errors.New(fmt.Sprintf("station objects are different "+
+			"but no differences found:\ninitial: %+v,\nupdated: %+v", s, su))
+	}
+
+	query, args, err := d.From("stations").Prepared(true).Where(gq.C("id").Eq(s.Id)).ToUpdateSQL(r)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.sqlx.Exec(query, args...)
+
+	return err
 }
 
 func (db *Db) AddMeasurement(station *Station, timestamp time.Time,
