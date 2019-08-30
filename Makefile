@@ -5,8 +5,8 @@ PKG := github.com/openairtech/apiserver
 
 BINDIR = bin
 
-VERSION_VAR := cmd.Version
-TIMESTAMP_VAR := cmd.Timestamp
+VERSION_VAR := $(PKG)/cmd.BuildVersion
+TIMESTAMP_VAR := $(PKG)/cmd.BuildTimestamp
 
 DEPLOY_USER := root
 DEPLOY_SERVER := openair.city
