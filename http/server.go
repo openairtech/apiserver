@@ -42,9 +42,9 @@ func NewServer(addr string, db *db.Db) *Server {
 
 	sgh := v1.StationsGetHandler(db)
 	v1Api.Handle("/stations", sgh).Methods("GET")
-	//v1Api.Handle("/stations", sgh).
-	//	Queries("offset", "{offset:[0-9]+}", "limit", "{limit:[0-9]+}").
-	//	Methods("GET")
+
+	mgh := v1.MeasurementsGetHandler(db)
+	v1Api.Handle("/measurements", mgh).Methods("GET")
 
 	originsOk := handlers.AllowedOrigins([]string{"*"})
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})

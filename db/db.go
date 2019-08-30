@@ -197,3 +197,30 @@ func (db *Db) AddMeasurement(station *Station, timestamp time.Time,
 
 	return &m, nil
 }
+
+// Measurements gets slice of station measurements sorted by timestamp according to given time interval.
+// stationId is identifier of station to get measurements.
+// timeFrom specifies the start time of interval to get measurements.
+// timeEnd specifies the end time of interval to get measurements.
+func (db *Db) Measurements(stationId int, timeFrom time.Time, timeTo time.Time) ([]Measurement, error) {
+	var m []Measurement
+	if timeFrom.After(timeTo) {
+		timeFrom, timeTo = timeTo, timeFrom
+	}
+
+	q := d.From("measurements")
+	q = q.Where(gq.C("id").Eq(stationId))
+	q = q.Where(gq.C("tstamp").Between(gq.Range(timeFrom, timeTo)))
+	q = q.Order(gq.I("tstamp").Asc())
+
+	query, args, err := q.Prepared(true).ToSQL()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.sqlx.Select(&m, query, args...); err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
