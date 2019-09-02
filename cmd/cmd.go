@@ -105,7 +105,7 @@ func runCmd(cmd *cobra.Command, _ []string) {
 	}
 	defer db.Close()
 
-	s := http.NewServer(fmt.Sprintf("%s:%d", httpHost, httpPort), db)
+	s := http.NewServer(BuildVersion, BuildTimestamp, fmt.Sprintf("%s:%d", httpHost, httpPort), db)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

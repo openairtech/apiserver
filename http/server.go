@@ -30,7 +30,7 @@ type Server struct {
 	http *http.Server
 }
 
-func NewServer(addr string, db *db.Db) *Server {
+func NewServer(buildVersion, buildDate string, addr string, db *db.Db) *Server {
 	var router = mux.NewRouter()
 
 	var v1Api = router.PathPrefix("/v1").Subrouter()
@@ -39,6 +39,8 @@ func NewServer(addr string, db *db.Db) *Server {
 	v1Api.MethodNotAllowedHandler = http.HandlerFunc(v1.ErrorMethodNotAllowedHandler)
 
 	v1Api.Handle("/feeder", v1.FeederHandler(db)).Methods("POST")
+
+	v1Api.Handle("/info", v1.InfoHandler(buildVersion, buildDate)).Methods("GET")
 
 	sgh := v1.StationsGetHandler(db)
 	v1Api.Handle("/stations", sgh).Methods("GET")
