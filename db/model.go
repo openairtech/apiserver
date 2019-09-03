@@ -47,7 +47,7 @@ func (s Station) ApiStation() api.Station {
 		am := s.Measurement.ApiMeasurement()
 		m = &am
 	}
-	return api.Station{
+	as := api.Station{
 		Id:              &sId,
 		Created:         api.UnixTime(s.Created),
 		Description:     s.Description.String,
@@ -55,6 +55,11 @@ func (s Station) ApiStation() api.Station {
 		Latitude:        s.Location.Y,
 		LastMeasurement: m,
 	}
+	if s.Seen != nil {
+		ass := api.UnixTime(*s.Seen)
+		as.Seen = &ass
+	}
+	return as
 }
 
 type Measurement struct {
