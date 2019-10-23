@@ -209,7 +209,7 @@ func (db *Db) Measurements(stationId int, timeFrom time.Time, timeTo time.Time) 
 	}
 
 	q := d.From("measurements")
-	q = q.Where(gq.C("id").Eq(stationId))
+	q = q.Where(gq.C("station_id").Eq(stationId))
 	q = q.Where(gq.C("tstamp").Between(gq.Range(timeFrom, timeTo)))
 	q = q.Order(gq.I("tstamp").Asc())
 
