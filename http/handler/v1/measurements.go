@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -60,7 +61,13 @@ func MeasurementsGetHandler(db *db.Db) http.Handler {
 			return
 		}
 
-		dms, err := db.Measurements(int(s), *from, *to)
+		var vars []string
+		v := r.URL.Query().Get("v")
+		if v != "" {
+			vars = strings.Split(v, ",")
+		}
+
+		dms, err := db.Measurements(int(s), *from, *to, vars)
 		if err != nil {
 			m := fmt.Sprintf("can't get measurements: %v", err)
 			writeResult(w, api.StatusServerError, m)

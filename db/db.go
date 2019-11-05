@@ -202,15 +202,29 @@ func (db *Db) AddMeasurement(station *Station, timestamp time.Time,
 // stationId is identifier of station to get measurements.
 // timeFrom specifies the start time of interval to get measurements.
 // timeEnd specifies the end time of interval to get measurements.
-func (db *Db) Measurements(stationId int, timeFrom time.Time, timeTo time.Time) ([]Measurement, error) {
+// vars specifies measurement variable names to return if not empty, otherwise return all variables. Timestamp is always returned.
+func (db *Db) Measurements(stationId int, timeFrom time.Time, timeTo time.Time, vars []string) ([]Measurement, error) {
 	var m []Measurement
 	if timeFrom.After(timeTo) {
 		timeFrom, timeTo = timeTo, timeFrom
 	}
 
 	q := d.From("measurements")
+
+	if vars != nil && len(vars) > 0 {
+		c, err := MeasurementDbColumns(vars)
+		if err != nil {
+			return nil, err
+		}
+		if !util.StringInSlice("tstamp", c) {
+			c = append(c, "tstamp")
+		}
+		q = q.Select(c...)
+	}
+
 	q = q.Where(gq.C("station_id").Eq(stationId))
 	q = q.Where(gq.C("tstamp").Between(gq.Range(timeFrom, timeTo)))
+
 	q = q.Order(gq.I("tstamp").Asc())
 
 	query, args, err := q.Prepared(true).ToSQL()

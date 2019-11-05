@@ -89,3 +89,13 @@ func ParseUnixTime(uts string) (*time.Time, error) {
 
 	return &t, nil
 }
+
+// StringInSlice checks string s is in slice list.
+func StringInSlice(s string, list []interface{}) bool {
+	for _, l := range list {
+		if l == s {
+			return true
+		}
+	}
+	return false
+}

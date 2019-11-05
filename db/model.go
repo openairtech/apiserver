@@ -16,6 +16,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/cridenour/go-postgis"
@@ -89,4 +90,34 @@ func (m Measurement) ApiMeasurement() api.Measurement {
 		Pm10:        fromNullFloat64(m.Pm10),
 		Aqi:         fromNullInt64(m.Aqi),
 	}
+}
+
+func MeasurementDbColumns(amv []string) ([]interface{}, error) {
+	s := make(map[interface{}]struct{})
+	// FIXME Use reflection with API/DB measurement structs
+	for _, v := range amv {
+		switch v {
+		case "timestamp":
+			s["tstamp"] = struct{}{}
+		case "temperature":
+			s["temperature"] = struct{}{}
+		case "humidity":
+			s["humidity"] = struct{}{}
+		case "pressure":
+			s["pressure"] = struct{}{}
+		case "pm25":
+			s["pm25"] = struct{}{}
+		case "pm10":
+			s["pm10"] = struct{}{}
+		case "aqi":
+			s["aqi"] = struct{}{}
+		default:
+			return nil, fmt.Errorf("unknown variable: %s", v)
+		}
+	}
+	c := make([]interface{}, 0, len(s))
+	for v := range s {
+		c = append(c, v)
+	}
+	return c, nil
 }
