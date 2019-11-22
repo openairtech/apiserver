@@ -35,52 +35,26 @@ func FeederHandler(db *db.Db) http.Handler {
 		var f api.FeederData
 		err := decoder.Decode(&f)
 		if err != nil {
-			m := fmt.Sprintf("invalid request: %v", err)
-			writeResult(w, api.StatusBadRequest, m)
+			em := fmt.Sprintf("invalid request: %v", err)
+			writeResult(w, api.StatusBadRequest, em)
 			return
 		}
 
 		s, err := db.StationByTokenId(f.TokenId)
 		if err != nil {
-			m := fmt.Sprintf("can't get station by token id [%s]: %v", f.TokenId, err)
-			writeResult(w, api.StatusBadRequest, m)
-			log.Error(m)
+			em := fmt.Sprintf("can't get station by token id [%s]: %v", f.TokenId, err)
+			writeResult(w, api.StatusBadRequest, em)
+			log.Error(em)
 			return
 		}
 
-		for i, fm := range f.Measurements {
-			// Check for timestamp presence in measurement
-			if fm.Timestamp == nil {
-				// Skip all measurements without timestamp except last
-				if i < len(f.Measurements)-1 {
-					log.Warnf("skipped measurement without timestamp: %+v", fm)
-					continue
-				}
-				// Set timestamp to the last measurement
-				now := api.UnixTime(time.Now())
-				fm.Timestamp = &now
-			}
-			ts := time.Time(*fm.Timestamp)
-
-			// Use provided AQI value or compute it from PM values
-			if fm.Aqi == nil && fm.Pm10 != nil && fm.Pm25 != nil {
-				pm := aqi.PM{Pm25: *fm.Pm25, Pm10: *fm.Pm10}
-				ac := pm.Aqi()
-				fm.Aqi = &ac
-			}
-
-			// Store measurement data to db
-			m, err := db.AddMeasurement(s, ts, fm.Temperature, fm.Humidity, fm.Pressure,
-				fm.Pm25, fm.Pm10, fm.Aqi)
-
-			if err != nil {
-				m := fmt.Sprintf("can't store measurement: %v", err)
-				writeResult(w, api.StatusServerError, m)
-				return
-			}
-
-			log.Debugf("added measurement: %+v", m)
+		ms := stationDbMeasurements(s, f)
+		if err := db.AddMeasurements(s, ms); err != nil {
+			em := fmt.Sprintf("station [%d]: can't add measurements: %v", s.Id, err)
+			writeResult(w, api.StatusServerError, em)
+			return
 		}
+		log.Debugf("station [%d]: added %d measurement(s)", s.Id, len(ms))
 
 		// Update station data
 		su := s.Copy()
@@ -88,11 +62,40 @@ func FeederHandler(db *db.Db) http.Handler {
 		su.Seen = &seen
 		su.Version = sql.NullString{String: f.Version, Valid: len(f.Version) > 0}
 		if err := db.UpdateStation(s, &su); err != nil {
-			m := fmt.Sprintf("can't update station data: %v", err)
-			writeResult(w, api.StatusServerError, m)
+			em := fmt.Sprintf("station [%d]: can't update station data: %v", s.Id, err)
+			writeResult(w, api.StatusServerError, em)
 			return
 		}
 
 		writeResult(w, api.StatusOk, "")
 	})
+}
+
+func stationDbMeasurements(station *db.Station, f api.FeederData) []db.Measurement {
+	var ms []db.Measurement
+
+	for i, am := range f.Measurements {
+		// Check for timestamp presence in measurement
+		if am.Timestamp == nil {
+			// Skip all measurements without timestamp except last
+			if i < len(f.Measurements)-1 {
+				log.Warnf("skipped measurement without timestamp: %+v", am)
+				continue
+			}
+			// Set timestamp to the last measurement
+			now := api.UnixTime(time.Now())
+			am.Timestamp = &now
+		}
+
+		// Use provided AQI value or compute it from PM values
+		if am.Aqi == nil && am.Pm10 != nil && am.Pm25 != nil {
+			pm := aqi.PM{Pm25: *am.Pm25, Pm10: *am.Pm10}
+			ac := pm.Aqi()
+			am.Aqi = &ac
+		}
+
+		ms = append(ms, db.NewMeasurement(station, am))
+	}
+
+	return ms
 }

@@ -161,8 +161,18 @@ func (db *Db) UpdateStation(s, su *Station) error {
 	return err
 }
 
-func (db *Db) AddMeasurement(station *Station, timestamp time.Time,
-	temperature, humidity, pressure, pm25, pm10 *float32, aqi *int) (*Measurement, error) {
+// AddMeasurement adds station measurement to database.
+// Returns added measurement in case of success,
+// or nil if station measurement with given timestamp is already added.
+// station is reference to station object
+// timestamp specifies the time of measurement
+// temperature specifies measured temperature
+// humidity specifies measured relative humidity
+// pm25 specifies measured PM2.5 value
+// pm10 specifies measured PM10 value
+// aqi specifies air quality index (AQI) value
+func (db *Db) AddMeasurement(station *Station, timestamp time.Time, temperature, humidity, pressure,
+	pm25, pm10 *float32, aqi *int) (*Measurement, error) {
 
 	m := Measurement{
 		StationId:   toNullInt64(&station.Id),
@@ -175,9 +185,9 @@ func (db *Db) AddMeasurement(station *Station, timestamp time.Time,
 		Timestamp:   &timestamp,
 	}
 
-	// TODO Add `ON CONFLICT` clause and its handling logic
 	query := `INSERT INTO measurements(station_id, tstamp, temperature, humidity, pressure, pm25, pm10, aqi)
 		VALUES (:station_id, :tstamp, :temperature, :humidity, :pressure, :pm25, :pm10, :aqi) 
+		ON CONFLICT("station_id", "tstamp") DO NOTHING 
 		RETURNING id`
 	rows, err := db.sqlx.NamedQuery(query, m)
 
@@ -187,15 +197,47 @@ func (db *Db) AddMeasurement(station *Station, timestamp time.Time,
 
 	defer util.CloseQuietly(rows)
 
-	if rows.Next() {
-		if err := rows.Scan(&m.Id); err != nil {
-			return nil, err
-		}
-	} else {
-		fmt.Printf("No rows!\n")
+	if !rows.Next() {
+		return nil, nil
+	}
+
+	if err := rows.Scan(&m.Id); err != nil {
+		return nil, err
 	}
 
 	return &m, nil
+}
+
+// AddMeasurements does bulk add station measurements to database.
+// station is reference to station object
+// measurements is slice of measurement data to add
+func (db *Db) AddMeasurements(station *Station, measurements []Measurement) error {
+	q := d.From("measurements").Prepared(true)
+
+	var gm []gq.Record
+
+	for _, dm := range measurements {
+		gm = append(gm, gq.Record{
+			"station_id":  station.Id,
+			"tstamp":      dm.Timestamp,
+			"temperature": dm.Temperature,
+			"humidity":    dm.Humidity,
+			"pressure":    dm.Pressure,
+			"pm25":        dm.Pm25,
+			"pm10":        dm.Pm10,
+			"aqi":         dm.Aqi})
+	}
+
+	query, args, err := q.ToInsertConflictSQL(gq.DoNothing(), gm)
+	if err != nil {
+		return err
+	}
+
+	if _, err := db.sqlx.Exec(query, args...); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Measurements gets slice of station measurements sorted by timestamp according to given time interval.

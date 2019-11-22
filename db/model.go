@@ -75,6 +75,20 @@ type Measurement struct {
 	Aqi         sql.NullInt64
 }
 
+func NewMeasurement(station *Station, am api.Measurement) Measurement {
+	ts := time.Time(*am.Timestamp)
+	return Measurement{
+		StationId:   toNullInt64(&station.Id),
+		Temperature: toNullFloat64(am.Temperature),
+		Humidity:    toNullFloat64(am.Humidity),
+		Pressure:    toNullFloat64(am.Pressure),
+		Pm25:        toNullFloat64(am.Pm25),
+		Pm10:        toNullFloat64(am.Pm10),
+		Aqi:         toNullInt64(am.Aqi),
+		Timestamp:   &ts,
+	}
+}
+
 func (m Measurement) ApiMeasurement() api.Measurement {
 	var ts *api.UnixTime
 	if m.Timestamp != nil {
