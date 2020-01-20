@@ -50,11 +50,17 @@ func FeederHandler(db *db.Db) http.Handler {
 
 		ms := stationDbMeasurements(s, f)
 		if err := db.AddMeasurements(s, ms); err != nil {
-			em := fmt.Sprintf("station [%d]: can't add measurements: %v", s.Id, err)
+			em := fmt.Sprintf("station [%d]: can't add %d measurement(s): %v", s.Id, len(ms), err)
 			writeResult(w, api.StatusServerError, em)
 			return
 		}
-		log.Debugf("station [%d]: added %d measurement(s)", s.Id, len(ms))
+
+		m := fmt.Sprintf("station [%d]: added %d measurement(s)", s.Id, len(ms))
+		if len(ms) > 1 {
+			log.Info(m)
+		} else {
+			log.Debug(m)
+		}
 
 		// Update station data
 		su := s.Copy()
