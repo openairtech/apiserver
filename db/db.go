@@ -69,7 +69,8 @@ func (db *Db) StationByTokenId(tokenId string) (*Station, error) {
 // mfrom specifies the upper time limit for last measurement to include in result, now() if nil.
 // mlast, if not nil, defines the lower time limit for last measurement to include in result,
 // and it is computed as (mfrom - mlast).
-func (db *Db) Stations(bbox []float64, mfrom *time.Time, mlast *time.Duration) ([]Station, error) {
+// sall, if true, will return all stations and their data, otherwise public stations only.
+func (db *Db) Stations(bbox []float64, mfrom *time.Time, mlast *time.Duration, sall bool) ([]Station, error) {
 	var s []Station
 
 	lj := []gq.Expression{gq.I("s.id").Eq(gq.I("m.station_id"))}
@@ -91,6 +92,10 @@ func (db *Db) Stations(bbox []float64, mfrom *time.Time, mlast *time.Duration) (
 	if len(bbox) == 4 {
 		w = append(w, gq.L("s.location @ ST_MakeEnvelope(?, ?, ?, ?)",
 			bbox[0], bbox[1], bbox[2], bbox[3]))
+	}
+
+	if !sall {
+		w = append(w, gq.L("s.is_public"))
 	}
 
 	q := d.From(gq.T("stations").As("s")).

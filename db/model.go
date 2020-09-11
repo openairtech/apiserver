@@ -31,6 +31,7 @@ type Station struct {
 	Version     sql.NullString
 	Created     time.Time
 	Seen        *time.Time
+	IsPublic    bool `db:"is_public"`
 	Location    postgis.PointS
 	Measurement `db:"m"`
 }
@@ -59,6 +60,10 @@ func (s Station) ApiStation() api.Station {
 	if s.Seen != nil {
 		ass := api.UnixTime(*s.Seen)
 		as.Seen = &ass
+	}
+	if !s.IsPublic {
+		asp := new(bool)
+		as.IsPublic = asp
 	}
 	return as
 }
