@@ -3,5 +3,5 @@ _test/
 bin/
 
 # IDE files
-*.iml
-*.idea
+*.vscode
+*.code-workspace
