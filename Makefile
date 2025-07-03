@@ -34,6 +34,9 @@ deploy: build-static
 	rsync -az $(BINDIR)/$(BIN) $(DEPLOY_USER)@$(DEPLOY_SERVER):$(DEPLOY_DIR) && \
 	ssh $(DEPLOY_USER)@$(DEPLOY_SERVER) 'systemctl restart $(BIN)'
 
+docker:
+	docker build -t openairtech/apiserver --build-arg VERSION=$(VERSION) --build-arg TIMESTAMP=$(TIMESTAMP) .
+
 fmt:
 	go fmt ./...
 
