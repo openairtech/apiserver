@@ -9,7 +9,8 @@ COPY . /app
 ARG TARGETOS TARGETARCH
 ENV GOOS=$TARGETOS
 ENV GOARCH=$TARGETARCH
-RUN go build -a -ldflags \
+ENV CGO_ENABLED=0
+RUN go build -a -installsuffix "static" -ldflags \
     "-s -w -X github.com/openairtech/apiserver/cmd.BuildVersion=$VERSION \
            -X github.com/openairtech/apiserver/cmd.BuildTimestamp=$TIMESTAMP" \
     -o bin/openair-server
