@@ -2,6 +2,9 @@
 _test/
 bin/
 
+# Local environment files
+*.env
+
 # IDE files
 *.vscode
 *.code-workspace

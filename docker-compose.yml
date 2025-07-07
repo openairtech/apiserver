@@ -1,0 +1,43 @@
+
+services:
+  apiserver:
+    image: openairtech/apiserver
+    restart: always
+    depends_on:
+      - postgresql
+    command: >
+      /openair-apiserver -s 0.0.0.0
+        --db-host=postgresql --db-user=${PG_USER}
+        --db-pass=${PG_PASS} --db-name=${PG_DB}
+        --db-max-conn=${PG_MAX_CONN}
+    ports:
+      - '127.0.0.1:8081:8081'
+    networks:
+      - external-network
+      - internal-network
+
+  postgresql:
+    image: ghcr.io/dbsystel/postgresql-partman:17-5
+    restart: always
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres']
+    environment:
+      - POSTGRESQL_USERNAME=${PG_USER}
+      - POSTGRESQL_PASSWORD=${PG_PASS}
+      - POSTGRESQL_DATABASE=${PG_DB}
+      - POSTGRESQL_TIMEZONE=${PG_TZ}
+      - POSTGRESQL_LOG_TIMEZONE=${PG_TZ}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - pg-backups:/backups
+    networks:
+      - internal-network
+
+networks:
+  external-network:
+  internal-network:
+    internal: true
+
+volumes:
+  pg-data:
+  pg-backups:
